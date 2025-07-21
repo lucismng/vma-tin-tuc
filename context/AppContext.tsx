@@ -61,24 +61,14 @@ const formatNewsString = (titles: string[], error?: string | null): string => {
     return titles.map(title => `${title.trim().replace(/\.$/, '')}`).join(SEPARATOR);
 };
 
-// Helper function to get an AI client with a random key from a comma-separated list
+// Helper function to get an AI client
 const getAiClient = () => {
-    const apiKeyString = process.env.API_KEY;
-    if (!apiKeyString) {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
         throw new Error("API key is missing. Please set the API_KEY environment variable.");
     }
-
-    // Split the string by commas and trim whitespace from each key, filtering out empty strings
-    const apiKeys = apiKeyString.split(',').map(key => key.trim()).filter(key => key);
-
-    if (apiKeys.length === 0) {
-        throw new Error("API_KEY environment variable is set but contains no valid keys.");
-    }
-    
-    // Select a random API key from the array
-    const selectedApiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
-    
-    return new GoogleGenAI({ apiKey: selectedApiKey });
+    // Adheres to the guideline to use the API_KEY directly.
+    return new GoogleGenAI({ apiKey });
 };
 
 
