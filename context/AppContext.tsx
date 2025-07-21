@@ -5,45 +5,6 @@ import { useWeather } from '../hooks/useWeather';
 import { NewsMode, InfoType, WeatherData, NewsSource, AiNewsItem } from '../types';
 import { CITIES_DATA } from '../constants';
 
-// --- Robust LocalStorage Helpers ---
-const safeLocalStorageGet = (key: string, defaultValue: any) => {
-    try {
-        const item = localStorage.getItem(key);
-        if (item === null) {
-            return defaultValue;
-        }
-        // Specific parsing for known JSON items
-        if (key === 'breakingNews') {
-            const parsed = JSON.parse(item);
-            if (Array.isArray(parsed) && parsed.every(i => typeof i === 'string')) {
-                return parsed;
-            }
-            return defaultValue;
-        }
-        return item;
-    } catch (error) {
-        console.warn(`Could not read from localStorage key "${key}":`, error);
-        return defaultValue;
-    }
-};
-
-const safeLocalStorageSet = (key: string, value: any) => {
-    try {
-        const valueToStore = typeof value === 'string' ? value : JSON.stringify(value);
-        localStorage.setItem(key, valueToStore);
-    } catch (error) {
-        console.warn(`Could not write to localStorage key "${key}":`, error);
-    }
-};
-
-const safeLocalStorageRemove = (key: string) => {
-    try {
-        localStorage.removeItem(key);
-    } catch (error) {
-        console.warn(`Could not remove from localStorage key "${key}":`, error);
-    }
-};
-
 // --- Context Type Definition ---
 interface AppContextType {
     isAppVisible: boolean;
@@ -120,10 +81,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     
-    // Initialize state from localStorage safely or use defaults
-    const [newsMode, setNewsMode] = useState<NewsMode>(() => safeLocalStorageGet('newsMode', 'rss'));
-    const [breakingNews, setBreakingNews] = useState<string[]>(() => safeLocalStorageGet('breakingNews', []));
-    const [breakingNewsTag, setBreakingNewsTag] = useState<string>(() => safeLocalStorageGet('breakingNewsTag', 'TIN KHẨN'));
+    // State is now ephemeral and resets on reload. No more localStorage.
+    const [newsMode, setNewsMode] = useState<NewsMode>('rss');
+    const [breakingNews, setBreakingNews] = useState<string[]>([]);
+    const [breakingNewsTag, setBreakingNewsTag] = useState<string>('TIN KHẨN');
 
     const [isMourningMode, setIsMourningMode] = useState(false);
     const [isTetMode, setIsTetMode] = useState(false);
@@ -140,19 +101,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     
     const [cityIndex, setCityIndex] = useState(0);
     const currentWeather = useWeather(cityIndex);
-
-    // --- LocalStorage Effects ---
-    useEffect(() => {
-        safeLocalStorageSet('newsMode', newsMode);
-    }, [newsMode]);
-
-    useEffect(() => {
-        safeLocalStorageSet('breakingNews', breakingNews);
-    }, [breakingNews]);
-
-    useEffect(() => {
-        safeLocalStorageSet('breakingNewsTag', breakingNewsTag);
-    }, [breakingNewsTag]);
 
     // --- Core Logic Effects ---
     // Weather rotation
@@ -310,10 +258,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setNewsMode('rss');
         setBreakingNews([]);
         setBreakingNewsTag('TIN KHẨN');
-        // Clear from localStorage safely
-        safeLocalStorageRemove('newsMode');
-        safeLocalStorageRemove('breakingNews');
-        safeLocalStorageRemove('breakingNewsTag');
     }, []);
 
     const addCustomNews = useCallback((news: string) => {
