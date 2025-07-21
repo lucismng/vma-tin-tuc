@@ -77,7 +77,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const { newsTitles: rssTitles, error: rssError, isFetching: isRssFetching, refetchNews: refetchRssNews } = useNews();
     
     // --- State Initialization ---
-    const [isAppVisible, setIsAppVisible] = useState(false);
+    const [isAppVisible, setIsAppVisible] = useState(true); // Always visible to prevent blank screen
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     
@@ -126,13 +126,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         }, 5000); // Cycle weather every 5 seconds
         return () => clearTimeout(timerId);
     }, [cityIndex]);
-    
-    // App visibility
-    useEffect(() => {
-        if (rssTitles.length > 0 || rssError || isRssFetching) {
-            setIsAppVisible(true);
-        }
-    }, [rssTitles, rssError, isRssFetching]);
 
     // --- Functions ---
     const closeHeadlineModal = useCallback(() => {
