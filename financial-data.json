@@ -1,0 +1,19 @@
+{
+  "exchangeRates": [
+    { "currency": "USD", "sell": 25455, "change": -5 },
+    { "currency": "EUR", "sell": 27150, "change": 45 },
+    { "currency": "JPY", "sell": 158.5, "change": -0.2 }
+  ],
+  "stockIndices": [
+    { "name": "VN-INDEX", "value": 1282.5, "change": -2.1, "changePercent": -0.16 },
+    { "name": "NASDAQ", "value": 19950.7, "change": 120.5, "changePercent": 0.61 }
+  ],
+  "oilPrices": [
+    { "name": "RON 95-III", "price": 22120, "change": -200 },
+    { "name": "WTI", "price": 81.55, "change": 0.25 }
+  ],
+  "goldPrices": [
+    { "name": "SJC", "buy": 74980000, "sell": 76980000, "change": 0 },
+    { "name": "Thế giới", "buy": 2321.40, "sell": 0, "change": -10.50 }
+  ]
+}
