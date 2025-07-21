@@ -61,6 +61,27 @@ const formatNewsString = (titles: string[], error?: string | null): string => {
     return titles.map(title => `${title.trim().replace(/\.$/, '')}`).join(SEPARATOR);
 };
 
+// Helper function to get an AI client with a random key from a comma-separated list
+const getAiClient = () => {
+    const apiKeyString = process.env.API_KEY;
+    if (!apiKeyString) {
+        throw new Error("API key is missing. Please set the API_KEY environment variable.");
+    }
+
+    // Split the string by commas and trim whitespace from each key, filtering out empty strings
+    const apiKeys = apiKeyString.split(',').map(key => key.trim()).filter(key => key);
+
+    if (apiKeys.length === 0) {
+        throw new Error("API_KEY environment variable is set but contains no valid keys.");
+    }
+    
+    // Select a random API key from the array
+    const selectedApiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
+    
+    return new GoogleGenAI({ apiKey: selectedApiKey });
+};
+
+
 // --- Provider Component ---
 export const AppProvider = ({ children }: { children: ReactNode }) => {
     const { newsTitles: rssTitles, error: rssError, isFetching: isRssFetching, refetchNews: refetchRssNews } = useNews();
@@ -161,9 +182,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setAiNewsSources([]);
 
         try {
-            if (!process.env.API_KEY) throw new Error("API key is missing.");
-            
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = getAiClient();
 
             const stormKeywords = ['bão', 'áp thấp', 'lũ', 'lụt', 'thiên tai', 'storm', 'typhoon', 'hurricane', 'cyclone'];
             const isStormTopic = stormKeywords.some(keyword => topic.toLowerCase().includes(keyword));
@@ -217,7 +236,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                 .filter((source: any) => source && source.uri)
                 .map((source: any) => ({ uri: source.uri, title: source.title || new URL(source.uri).hostname })) || [];
             
-            const uniqueSources = [...new Map(sourcesRaw.map((s: NewsSource) => [s.uri, s])).values()];
+            const uniqueSources = Array.from(new Map(sourcesRaw.map((s: NewsSource) => [s.uri, s])).values());
             
             setItemsForSelection(parsedData);
             setSourcesForSelection(uniqueSources);
@@ -310,9 +329,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     
     // --- Spell Checking ---
     const checkSpelling = useCallback(async (text: string) => {
-        if (!process.env.API_KEY || !text) return;
+        if (!text) return;
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = getAiClient();
             const prompt = `Correct any spelling or grammatical errors in the following Vietnamese phrase. If it is already correct, return the original phrase. Only return the corrected phrase, nothing else. Phrase: "${text}"`;
             
             const response = await ai.models.generateContent({
