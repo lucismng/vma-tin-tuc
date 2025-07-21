@@ -84,8 +84,20 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // Initialize state from localStorage or use defaults
     const [newsMode, setNewsMode] = useState<NewsMode>(() => (localStorage.getItem('newsMode') as NewsMode) || 'rss');
     const [breakingNews, setBreakingNews] = useState<string[]>(() => {
-        const saved = localStorage.getItem('breakingNews');
-        return saved ? JSON.parse(saved) : [];
+        try {
+            const saved = localStorage.getItem('breakingNews');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Basic validation
+                if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+                    return parsed;
+                }
+            }
+        } catch (error) {
+            console.error("Failed to parse breakingNews from localStorage:", error);
+            localStorage.removeItem('breakingNews'); // Clear corrupted data
+        }
+        return [];
     });
     const [breakingNewsTag, setBreakingNewsTag] = useState<string>(() => localStorage.getItem('breakingNewsTag') || 'TIN KHẨN');
 
@@ -181,7 +193,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     1. "headline": một tiêu đề tin tức rất ngắn gọn, hấp dẫn, VIẾT HOA.
     2. "summary": một bản tóm tắt chi tiết hơn (1-2 câu) cung cấp nội dung chính của tin.
 
-    QUAN TRỌNG: Chỉ trả về một mảng JSON của các đối tượng này. ĐẢM BẢO TUYỆT ĐỐI JSON HỢP LỆ. Bất kỳ chuỗi nào chứa dấu ngoặc kép (") phải được thoát đúng cách (\\"). Phản hồi của bạn phải bắt đầu bằng '[' và kết thúc bằng ']'. Không thêm bất kỳ ký tự nào khác, không có markdown, không có lời giải thích.`;
+    QUAN TRỌNG: Chỉ trả về một mảng JSON của các đối tượng này. ĐẢM BẢO TUYỆT ĐỐI JSON HỢP LỆ. Bất kỳ chuỗi nào chứa dấu ngoặc kép (") phải được thoát đúng cách (\\").
+    Toàn bộ phản hồi của bạn PHẢI được bọc trong một khối mã JSON duy nhất, như sau:
+    \`\`\`json
+    [
+      { "headline": "...", "summary": "..." },
+      { "headline": "...", "summary": "..." }
+    ]
+    \`\`\`
+    Không thêm bất kỳ văn bản giải thích nào bên ngoài khối mã.`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -192,22 +212,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             });
             
             const rawText = response.text;
-            const startIndex = rawText.indexOf('[');
-            const endIndex = rawText.lastIndexOf(']');
+            // Robust regex to find the JSON block, robust against surrounding text
+            const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
+            const match = rawText.match(jsonRegex);
 
-            if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
-                throw new Error("AI đã trả về dữ liệu không chứa một mảng JSON hợp lệ.");
+            if (!match || !match[1]) {
+                throw new Error("AI đã trả về dữ liệu không chứa một khối JSON hợp lệ. Vui lòng thử lại với chủ đề khác.");
             }
-            
-            const jsonString = rawText.substring(startIndex, endIndex + 1);
-        
+
+            const jsonString = match[1];
             let parsedData: AiNewsItem[];
             try {
                  parsedData = JSON.parse(jsonString);
             } catch (e) {
                  console.error("Lỗi phân tích JSON từ AI:", e);
-                 console.error("Dữ liệu thô nhận được:", rawText);
-                 throw new Error("AI đã trả về dữ liệu không hợp lệ. Vui lòng thử lại.");
+                 console.error("Dữ liệu JSON chuỗi nhận được:", jsonString);
+                 throw new Error("AI đã trả về dữ liệu JSON không hợp lệ. Vui lòng thử lại.");
             }
             
             if (!Array.isArray(parsedData) || parsedData.length === 0) {
