@@ -61,14 +61,20 @@ const formatNewsString = (titles: string[], error?: string | null): string => {
     return titles.map(title => `${title.trim().replace(/\.$/, '')}`).join(SEPARATOR);
 };
 
-// Helper function to get an AI client
-const getAiClient = () => {
+// Helper function to get an AI client SAFELY
+const getAiClient = (): GoogleGenAI | null => {
     const apiKey = process.env.API_KEY;
     if (!apiKey) {
-        throw new Error("API key is missing. Please set the API_KEY environment variable.");
+        console.error("CRITICAL: API key is missing. AI features will be disabled. Please set the API_KEY environment variable.");
+        return null;
     }
-    // Adheres to the guideline to use the API_KEY directly.
-    return new GoogleGenAI({ apiKey });
+    try {
+        // Adheres to the guideline to use the API_KEY directly.
+        return new GoogleGenAI({ apiKey });
+    } catch (error) {
+        console.error("CRITICAL: Failed to initialize GoogleGenAI, AI features will be disabled.", error);
+        return null;
+    }
 };
 
 
@@ -148,9 +154,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setItemsForSelection([]);
         setAiNewsSources([]);
 
-        try {
-            const ai = getAiClient();
+        const ai = getAiClient();
+        if (!ai) {
+            const errorMsg = "Lỗi cấu hình: Khóa API của Google chưa được thiết lập. Tính năng AI không khả dụng.";
+            setAiGeneratedHeadlines([errorMsg]);
+            setIsLoading(false);
+            return;
+        }
 
+        try {
             const stormKeywords = ['bão', 'áp thấp', 'lũ', 'lụt', 'thiên tai', 'storm', 'typhoon', 'hurricane', 'cyclone'];
             const isStormTopic = stormKeywords.some(keyword => topic.toLowerCase().includes(keyword));
             
@@ -301,8 +313,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     // --- Spell Checking ---
     const checkSpelling = useCallback(async (text: string) => {
         if (!text) return;
+        
+        const ai = getAiClient();
+        if (!ai) {
+            console.log("Spell check skipped: API key not configured.");
+            return;
+        }
+
         try {
-            const ai = getAiClient();
             const prompt = `Correct any spelling or grammatical errors in the following Vietnamese phrase. If it is already correct, return the original phrase. Only return the corrected phrase, nothing else. Phrase: "${text}"`;
             
             const response = await ai.models.generateContent({
