@@ -5,6 +5,45 @@ import { useWeather } from '../hooks/useWeather';
 import { NewsMode, InfoType, WeatherData, NewsSource, AiNewsItem } from '../types';
 import { CITIES_DATA } from '../constants';
 
+// --- Robust LocalStorage Helpers ---
+const safeLocalStorageGet = (key: string, defaultValue: any) => {
+    try {
+        const item = localStorage.getItem(key);
+        if (item === null) {
+            return defaultValue;
+        }
+        // Specific parsing for known JSON items
+        if (key === 'breakingNews') {
+            const parsed = JSON.parse(item);
+            if (Array.isArray(parsed) && parsed.every(i => typeof i === 'string')) {
+                return parsed;
+            }
+            return defaultValue;
+        }
+        return item;
+    } catch (error) {
+        console.warn(`Could not read from localStorage key "${key}":`, error);
+        return defaultValue;
+    }
+};
+
+const safeLocalStorageSet = (key: string, value: any) => {
+    try {
+        const valueToStore = typeof value === 'string' ? value : JSON.stringify(value);
+        localStorage.setItem(key, valueToStore);
+    } catch (error) {
+        console.warn(`Could not write to localStorage key "${key}":`, error);
+    }
+};
+
+const safeLocalStorageRemove = (key: string) => {
+    try {
+        localStorage.removeItem(key);
+    } catch (error) {
+        console.warn(`Could not remove from localStorage key "${key}":`, error);
+    }
+};
+
 // --- Context Type Definition ---
 interface AppContextType {
     isAppVisible: boolean;
@@ -81,25 +120,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     
-    // Initialize state from localStorage or use defaults
-    const [newsMode, setNewsMode] = useState<NewsMode>(() => (localStorage.getItem('newsMode') as NewsMode) || 'rss');
-    const [breakingNews, setBreakingNews] = useState<string[]>(() => {
-        try {
-            const saved = localStorage.getItem('breakingNews');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                // Basic validation
-                if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
-                    return parsed;
-                }
-            }
-        } catch (error) {
-            console.error("Failed to parse breakingNews from localStorage:", error);
-            localStorage.removeItem('breakingNews'); // Clear corrupted data
-        }
-        return [];
-    });
-    const [breakingNewsTag, setBreakingNewsTag] = useState<string>(() => localStorage.getItem('breakingNewsTag') || 'TIN KHẨN');
+    // Initialize state from localStorage safely or use defaults
+    const [newsMode, setNewsMode] = useState<NewsMode>(() => safeLocalStorageGet('newsMode', 'rss'));
+    const [breakingNews, setBreakingNews] = useState<string[]>(() => safeLocalStorageGet('breakingNews', []));
+    const [breakingNewsTag, setBreakingNewsTag] = useState<string>(() => safeLocalStorageGet('breakingNewsTag', 'TIN KHẨN'));
 
     const [isMourningMode, setIsMourningMode] = useState(false);
     const [isTetMode, setIsTetMode] = useState(false);
@@ -119,15 +143,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     // --- LocalStorage Effects ---
     useEffect(() => {
-        localStorage.setItem('newsMode', newsMode);
+        safeLocalStorageSet('newsMode', newsMode);
     }, [newsMode]);
 
     useEffect(() => {
-        localStorage.setItem('breakingNews', JSON.stringify(breakingNews));
+        safeLocalStorageSet('breakingNews', breakingNews);
     }, [breakingNews]);
 
     useEffect(() => {
-        localStorage.setItem('breakingNewsTag', breakingNewsTag);
+        safeLocalStorageSet('breakingNewsTag', breakingNewsTag);
     }, [breakingNewsTag]);
 
     // --- Core Logic Effects ---
@@ -286,10 +310,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setNewsMode('rss');
         setBreakingNews([]);
         setBreakingNewsTag('TIN KHẨN');
-        // Clear from localStorage
-        localStorage.removeItem('newsMode');
-        localStorage.removeItem('breakingNews');
-        localStorage.removeItem('breakingNewsTag');
+        // Clear from localStorage safely
+        safeLocalStorageRemove('newsMode');
+        safeLocalStorageRemove('breakingNews');
+        safeLocalStorageRemove('breakingNewsTag');
     }, []);
 
     const addCustomNews = useCallback((news: string) => {
